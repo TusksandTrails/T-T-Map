@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Initialize a map using a bounding box</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.js"></script>
+<style>
+body { margin: 0; padding: 0; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+</style>
+</head>
+<body>
+<style>
+    html,
+    body,
+    #map-wrapper-outer {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    #map-wrapper-outer {
+        display: 'flex';
+        justify-content: center;
+        align-items: center;
+    }
+
+    #map-wrapper-inner {
+        position: relative;
+        height: 100%;
+        width: 100%;
+    }
+
+    #btn-container {
+        position: absolute;
+        top: 20px;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        padding: 0 10px 0 10px;
+        box-sizing: border-box;
+        z-index: 1;
+    }
+
+    .btn-control {
+        font:
+            bold 12px/20px 'Helvetica Neue',
+            Arial,
+            Helvetica,
+            sans-serif;
+        background-color: #3386c0;
+        color: #fff;
+        border: none;
+        width: 200px;
+        cursor: pointer;
+        padding: 10px 20px;
+        border-radius: 3px;
+    }
+
+    .btn-control:hover {
+        background-color: #4ea0da;
+    }
+
+    .btn-control.active::before {
+        content: '✔';
+        margin-right: 5px;
+    }
+
+    /* Search container styles */
+    #search-container {
+        position: absolute;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1;
+        width: 80%;
+        max-width: 500px;
+        display: flex;
+        gap: 10px;
+    }
+
+    #location-search {
+        flex-grow: 1;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    #search-button {
+        padding: 10px 15px;
+        background-color: #3386c0;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+
+    #search-button:hover {
+        background-color: #4ea0da;
+    }
+
+    /* Search results container */
+    #search-results {
+        position: absolute;
+        top: 125px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80%;
+        max-width: 500px;
+        max-height: 200px;
+        overflow-y: auto;
+        background-color: white;
+        border-radius: 3px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        z-index: 1;
+        display: none;
+    }
+
+    .search-result-item {
+        padding: 10px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+    }
+
+    .search-result-item:hover {
+        background-color: #f0f0f0;
+    }
+
+    /* Popup styles */
+    .mapboxgl-popup-content {
+        padding: 15px;
+        max-width: 300px;
+    }
+</style>
+<div id="btn-container">
+    <button id="narrow" class="btn-control">Narrow</button>
+    <button id="full" class="btn-control active">Full</button>
+    <button id="wide" class="btn-control">Wide</button>
+</div>
+
+<!-- Search interface -->
+<div id="search-container">
+    <input type="text" id="location-search" placeholder="Search for a location...">
+    <button id="search-button">Search</button>
+</div>
+
+<!-- Search results container -->
+<div id="search-results"></div>
+
+<div id="map-wrapper-outer">
+    <div id="map-wrapper-inner">
+        <div id="map"></div>
+    </div>
+</div>
+<br>
+
+<script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoidHVza3MtYW5kLXRyYWlscyIsImEiOiJjbTc4enJydGMwMGlwMmpwanl5Zmh6MXQ0In0.AqIC9FEwC9lBcoX7yLb4Ow';
+    let map;
+    let geojsonData = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {
+                    "boro_name": "Bilimungwe Bush Camp"
+                },
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [31.5703313257406, -13.387112809792148]
+                }
+            },
+            {
+                "type": "Feature",
+                "properties": {
+                    "boro_name": "Camp Sabali"
+                },
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [31.812249848954675, -13.10323883338945]
+                }
+            },
+            {
+                "type": "Feature",
+                "properties": {
+                    "boro_name": "Chamilandu Camp"
+                },
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [31.64167668709678,-13.31594260851355]
+                }
+            },
+            {
+                "type": "Feature",
+                "properties": {
+                    "boro_name": "Chichele Presidential"
+                },
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [31.71023185637367,-13.165949688893484]
+                }
+            },
+            {
+                "type": "Feature",
+                "properties": {
+                    "boro_name": "Chikunto Safari Lodge"
+                },
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [31.869373008649223,-13.033626662511935]
+                }
+            }
+            {
+                "type": "Feature",
+                "properties": {
+                    "boro_name": "Chichele Presidential"
+                },
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [31.71023185637367,-13.165949688893484]
+                }
+            },
+            {
+                "type": "Feature",
+                "properties": {
+                    "boro_name": "Chichele Presidential"
+                },
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [31.71023185637367,-13.165949688893484]
+                }
+            },
+        ]
+    };
+
+    const initializeMap = () => {
+        map = new mapboxgl.Map({
+            container: 'map',
+            bounds: [
+                [-74.2709, 40.48972],
+                [-73.7042, 40.93288]
+            ], // bounding box (southwest corner, northeast corner)
+            fitBoundsOptions: {
+                padding: 15 // padding to keep the bounds away from the edge of the map
+            }
+        });
+
+        // add a geojson line layer with a polygon representing the bounds
+        map.on('load', () => {
+            // Add bounding box
+            map.addLayer({
+                id: 'line-bounding-box',
+                type: 'line',
+                paint: {
+                    'line-color': '#3386c0',
+                    'line-width': 3,
+                    'line-opacity': 0.9
+                },
+                source: {
+                    type: 'geojson',
+                    data: {
+                        'type': 'Feature',
+                        'properties': {},
+                        'geometry': {
+                            'type': 'Polygon',
+                            'coordinates': [
+                                [
+                                    [-74.2709, 40.48972],
+                                    [-74.2709, 40.93288],
+                                    [-73.7042, 40.93288],
+                                    [-73.7042, 40.48972],
+                                    [-74.2709, 40.48972]
+                                ]
+                            ]
+                        }
+                    }
+                }
+            });
+
+            // Add GeoJSON data to the map
+            if (map.getSource('locations')) {
+                map.getSource('locations').setData(geojsonData);
+            } else {
+                map.addSource('locations', {
+                    type: 'geojson',
+                    data: geojsonData
+                });
+
+                // Add a layer showing the points
+                map.addLayer({
+                    id: 'locations',
+                    type: 'circle',
+                    source: 'locations',
+                    paint: {
+                        'circle-radius': 8,
+                        'circle-color': '#ff7800',
+                        'circle-stroke-width': 1,
+                        'circle-stroke-color': '#fff'
+                    }
+                });
+
+                // Add a layer for the labels
+                map.addLayer({
+                    id: 'location-labels',
+                    type: 'symbol',
+                    source: 'locations',
+                    layout: {
+                        'text-field': ['get', 'boro_name'],
+                        'text-anchor': 'top',
+                        'text-offset': [0, 1],
+                        'text-size': 12
+                    },
+                    paint: {
+                        'text-color': '#333',
+                        'text-halo-color': '#fff',
+                        'text-halo-width': 1
+                    }
+                });
+
+                // When a click event occurs on a feature in the locations layer, open a popup
+                map.on('click', 'locations', (e) => {
+                    const coordinates = e.features[0].geometry.coordinates.slice();
+                    const boro_name = e.features[0].properties.boro_name;
+
+                    // Create popup
+                    new mapboxgl.Popup()
+                        .setLngLat(coordinates)
+                        .setHTML(`<h3>${boro_name}</h3>`)
+                        .addTo(map);
+                });
+
+                // Change the cursor to a pointer when hovering over the locations layer
+                map.on('mouseenter', 'locations', () => {
+                    map.getCanvas().style.cursor = 'pointer';
+                });
+
+                // Change it back when it leaves
+                map.on('mouseleave', 'locations', () => {
+                    map.getCanvas().style.cursor = '';
+                });
+            }
+        });
+    };
+
+    // Search functionality
+    const performSearch = () => {
+        const searchTerm = document.getElementById('location-search').value.toLowerCase();
+        const resultsContainer = document.getElementById('search-results');
+        
+        // Clear previous results
+        resultsContainer.innerHTML = '';
+        
+        if (!searchTerm.trim()) {
+            resultsContainer.style.display = 'none';
+            return;
+        }
+        
+        // Find matches in the GeoJSON data
+        const matches = geojsonData.features.filter(feature => 
+            feature.properties.boro_name && feature.properties.boro_name.toLowerCase().includes(searchTerm)
+        );
+        
+        if (matches.length === 0) {
+            resultsContainer.innerHTML = '<div class="search-result-item">No locations found</div>';
+            resultsContainer.style.display = 'block';
+            return;
+        }
+        
+        // Display matches
+        matches.forEach(match => {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'search-result-item';
+            resultItem.textContent = match.properties.boro_name;
+            resultItem.addEventListener('click', () => {
+                // Fly to the location
+                map.flyTo({
+                    center: match.geometry.coordinates,
+                    zoom: 14,
+                    essential: true
+                });
+                
+                // Show popup
+                new mapboxgl.Popup()
+                    .setLngLat(match.geometry.coordinates)
+                    .setHTML(`<h3>${match.properties.boro_name}</h3>`)
+                    .addTo(map);
+                
+                // Hide results
+                resultsContainer.style.display = 'none';
+                
+                // Clear search input
+                document.getElementById('location-search').value = '';
+            });
+            
+            resultsContainer.appendChild(resultItem);
+        });
+        
+        resultsContainer.style.display = 'block';
+    };
+
+    // Search button click event
+    document.getElementById('search-button').addEventListener('click', performSearch);
+    
+    // Search on enter key
+    document.getElementById('location-search').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+    
+    // Hide search results when clicking outside
+    document.addEventListener('click', (e) => {
+        const searchContainer = document.getElementById('search-container');
+        const resultsContainer = document.getElementById('search-results');
+        
+        if (!searchContainer.contains(e.target) && !resultsContainer.contains(e.target)) {
+            resultsContainer.style.display = 'none';
+        }
+    });
+
+    // change the map wrapper size
+    const resizeMap = ({ height, width }) => {
+        const containerDiv = document.getElementById('map-wrapper-inner');
+
+        containerDiv.style.width = width;
+        containerDiv.style.height = height;
+
+        if (map) map.remove();
+        initializeMap();
+    };
+
+    const setActiveButton = (id) => {
+        document.getElementsByClassName('active')[0].classList.remove('active');
+        document.getElementById(id).classList.add('active');
+    };
+
+    // button click listeners
+    document.getElementById('narrow').addEventListener('click', () => {
+        resizeMap({ width: '30%', height: '100%' });
+        setActiveButton('narrow');
+    });
+
+    document.getElementById('full').addEventListener('click', () => {
+        resizeMap({ width: '100%', height: '100%' });
+        setActiveButton('full');
+    });
+
+    document.getElementById('wide').addEventListener('click', () => {
+        resizeMap({ width: '100%', height: '50%' });
+        setActiveButton('wide');
+    });
+
+    initializeMap();
+</script>
+
+</body>
+</html>
